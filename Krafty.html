@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Krafty</title>
+</head>
+<style>
+    body {
+        font-family: Copperplate, Fantasy;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #bca0dc;
+    }
+
+    h1 {
+        margin-button: 20px;
+        color: white;
+    }
+
+    p{
+        font-size: 2em;
+        color: white;
+        margin-top: 0;
+    }
+    button {
+        padding: 10px 20px;
+        font-size: 1em;
+        margin: 5px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px;
+        background-color: #b491c8;
+        color: white;
+        button:hover {
+            background-color: #7c5295;
+        }
+    }
+
+
+</style>
+<head>
+<body>
+<h1>Counter </h1>
+<p id="count">0</p>
+
+<div>
+<button onclick="increaseCount()">+</button>
+<button onclick="decreaseCount()">-</button>
+<button onclick="resetCount()">Reset</button>
+<button onclick="saveCount()">Save</button>
+<button onclick="loadCount()">Load</button>
+</div>
+
+<h3>Stopwatch <span id="time">0</span>s</h3>
+<div>
+    <button onclick="startStopwatch()">Start</button>
+    <button onclick="stopStopwatch()">Stop</button>
+    <button onclick="resetStopwatch()">reset</button>
+</div>
+
+<script>
+
+    let count = 0;
+    loadCount();
+
+    let timer;
+    let seconds = 0;
+
+    function updateCount() {
+        document.getElementById("count").innerHTML = count;
+    }
+
+    function increaseCount() {
+        count++;
+        updateCount();
+    }
+
+    function decreaseCount() {
+        if (count > 0) {
+            count--;
+            updateCount();
+        }
+    }
+
+    function resetCount() {
+        count = 0;
+        updateCount();
+    }
+
+    function saveCount() {
+        localStorage.setItem("count", count);
+        localStorage.setItem("seconds", seconds);
+    }
+
+    function loadCount() {
+        let saved = localStorage.getItem("count");
+        if (saved !== null) {
+            count = Number(saved);
+        }
+        updateCount();
+
+        let savedSeconds = localStorage.getItem("seconds");
+        if (savedSeconds !== null) {
+            seconds = Number(savedSeconds);
+            document.getElementById("time").innerHTML = seconds;
+        }
+    }
+
+    function startStopwatch(){
+        if (!timer) {
+            timer = setInterval(() => {
+                seconds++;
+                document.getElementById("time").innerHTML = seconds;
+            }, 1000);
+        }
+    }
+    function stopStopwatch(){
+        clearInterval(timer);
+        timer = null;
+    }
+    function resetStopwatch(){
+        clearInterval(timer);
+        timer = null;
+        seconds = 0;
+        document.getElementById("time").innerHTML = seconds;
+    }
+</script>
+</body>
