@@ -3,130 +3,296 @@
 <head>
     <meta charset="UTF-8">
     <title>Krafty</title>
-</head>
-<style>
-    body {
-        font-family: Copperplate, Fantasy;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        margin: 0;
-        background-color: #bca0dc;
-    }
+    <!-- Mozilla PDF.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        body {
+            font-family: Copperplate, Fantasy, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            background-color: #191970;
+        }
 
-    h1 {
-        margin-button: 20px;
-        color: white;
-    }
+        h1, h3 {
+            color: white;
+            margin-bottom: 10px;
+        }
 
-    p{
-        font-size: 2em;
-        color: white;
-        margin-top: 0;
-    }
-    button {
-        padding: 10px 20px;
-        font-size: 1em;
-        margin: 5px;
-        cursor: pointer;
-        border: none;
-        border-radius: 5px;
-        background-color: #b491c8;
-        color: white;
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #b491c8;
+            color: white;
+        }
+
         button:hover {
             background-color: #7c5295;
         }
-    }
 
+        #count {
+            font-size: 2em;
+            color: white;
+            margin-bottom: 15px;
+        }
 
-</style>
-<head>
+        #counter-container {
+            margin-bottom: 15px;
+        }
+
+        #pdf-render {
+            border: 2px solid white;
+            border-radius: 8px;
+            background-color: white;
+            margin-top: 15px;
+            max-width: 90%;
+            height: auto;
+            cursor: pointer; /* Change cursor to pointer for clickable area */
+        }
+    </style>
+</head>
 <body>
-<h1>Counter </h1>
-<p id="count">0</p>
+<h1>Counter</h1>
+
+<div id="count">0</div>
+<div id="counter-container"></div>
 
 <div>
-<button onclick="increaseCount()">+</button>
-<button onclick="decreaseCount()">-</button>
-<button onclick="resetCount()">Reset</button>
-<button onclick="saveCount()">Save</button>
-<button onclick="loadCount()">Load</button>
+    <button onclick="addCounter(0); saveAll();">Add Counter</button>
+    <button onclick="increaseCount()">+</button>
+    <button onclick="decreaseCount()">-</button>
+    <button onclick="resetAll()">Reset</button>
+    <button onclick="saveAll()">Save</button>
+    <button onclick="loadAll()">Load</button>
 </div>
 
-<h3>Stopwatch <span id="time">0</span>s</h3>
+<h3>Stopwatch <span id="time">00:00:00</span></h3>
 <div>
     <button onclick="startStopwatch()">Start</button>
     <button onclick="stopStopwatch()">Stop</button>
-    <button onclick="resetStopwatch()">reset</button>
+    <button onclick="resetStopwatch()">Reset</button>
 </div>
 
+<div style="margin-top: 15px;">
+    <input type="number" id="time-input" placeholder="Enter time in seconds">
+    <button onclick="addTime()">Add Time</button>
+</div>
+
+<hr style="width: 80%; margin: 20px 0; border: 1px solid white;">
+
+<h3>PDF Viewer (Tap to Navigate)</h3>
+<div>
+    <input type="file" id="pdf-upload" accept="application/pdf">
+</div>
+<p id="pdf-info" style="color: white; margin-top: 5px;">Page 1 of 1</p>
+<canvas id="pdf-render"></canvas>
+
 <script>
+        // Configure Mozilla PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    let count = 0;
-    loadCount();
+        let count = 0;
+        let timer = null;
+        let seconds = 0;
 
-    let timer;
-    let seconds = 0;
+        // PDF specific variables
+        let pdfDoc = null;
+        let currentPage = 1;
+        let totalPages = 1;
 
-    function updateCount() {
+        // --- Helper Function for Formatting Time ---
+        function formatTime(totalSeconds) {
+        let hrs = Math.floor(totalSeconds / 3600);
+        let mins = Math.floor((totalSeconds % 3600) / 60);
+        let secs = totalSeconds % 60;
+
+        let paddedHrs = String(hrs).padStart(2, '0');
+        let paddedMins = String(mins).padStart(2, '0');
+        let paddedSecs = String(secs).padStart(2, '0');
+
+        return `${paddedHrs}:${paddedMins}:${paddedSecs}`;
+    }
+
+        // --- Counter Functions ---
+        function addCounter(initialValue = 0) {
+        let container = document.getElementById("counter-container");
+        let newCounter = document.createElement("div");
+        newCounter.innerHTML = 'Count: <span class="dynamic-count">' + initialValue + '</span> ' +
+        '<button onclick="changeDynamic(this, 1);">+</button>' +
+        '<button onclick="changeDynamic(this, -1);">-</button>' +
+        '<button onclick="this.parentElement.remove(); saveAll();">Delete</button>';
+        container.appendChild(newCounter);
+    }
+
+        function changeDynamic(btn, delta) {
+        let container = btn.parentElement;
+        let span = container.querySelector(".dynamic-count");
+        if (span) {
+        let value = Number(span.innerHTML) + delta;
+        if (value >= 0) {
+        span.innerHTML = value;
+    }
+    } else {
+        console.error("Couldn't find dynamic count span");
+    }
+    }
+
+        function updateCount() {
         document.getElementById("count").innerHTML = count;
     }
 
-    function increaseCount() {
+        function increaseCount() {
         count++;
         updateCount();
     }
 
-    function decreaseCount() {
+        function decreaseCount() {
         if (count > 0) {
-            count--;
-            updateCount();
-        }
-    }
-
-    function resetCount() {
-        count = 0;
+        count--;
         updateCount();
     }
+    }
 
-    function saveCount() {
-        localStorage.setItem("count", count);
+        function resetAll() {
+        count = 0;
+        updateCount();
+        document.getElementById("counter-container").innerHTML = "";
+        localStorage.removeItem("mainCounter");
+        localStorage.removeItem("myCounters");
+    }
+
+        function saveAll() {
+        let spans = document.querySelectorAll('.dynamic-count');
+        let values = Array.from(spans).map(span => Number(span.innerHTML));
+        localStorage.setItem("mainCounter", count);
+        localStorage.setItem("myCounters", JSON.stringify(values));
         localStorage.setItem("seconds", seconds);
     }
 
-    function loadCount() {
-        let saved = localStorage.getItem("count");
-        if (saved !== null) {
-            count = Number(saved);
-        }
+        function loadAll() {
+        document.getElementById("counter-container").innerHTML = "";
+
+        let savedCount = localStorage.getItem("mainCounter");
+        if (savedCount !== null) {
+        count = Number(savedCount);
         updateCount();
+    }
+
+        let saved = JSON.parse(localStorage.getItem("myCounters"));
+        if (Array.isArray(saved)) {
+        saved.forEach(value => addCounter(value));
+    }
 
         let savedSeconds = localStorage.getItem("seconds");
         if (savedSeconds !== null) {
-            seconds = Number(savedSeconds);
-            document.getElementById("time").innerHTML = seconds;
-        }
+        seconds = Number(savedSeconds);
+        document.getElementById("time").innerHTML = formatTime(seconds);
+    }
     }
 
-    function startStopwatch(){
+        // --- Stopwatch Functions ---
+        function startStopwatch() {
         if (!timer) {
-            timer = setInterval(() => {
-                seconds++;
-                document.getElementById("time").innerHTML = seconds;
-            }, 1000);
-        }
+        timer = setInterval(() => {
+        seconds++;
+        document.getElementById("time").innerHTML = formatTime(seconds);
+    }, 1000);
     }
-    function stopStopwatch(){
+    }
+
+        function stopStopwatch() {
         clearInterval(timer);
         timer = null;
     }
-    function resetStopwatch(){
+
+        function resetStopwatch() {
         clearInterval(timer);
         timer = null;
         seconds = 0;
-        document.getElementById("time").innerHTML = seconds;
+        document.getElementById("time").innerHTML = formatTime(seconds);
     }
+
+        function addTime() {
+        let input = document.getElementById("time-input");
+        let addedSeconds = Number(input.value);
+        if (!isNaN(addedSeconds) && input.value !== "") {
+        seconds += addedSeconds;
+        document.getElementById("time").innerHTML = formatTime(seconds);
+        input.value = "";
+    }
+    }
+
+        // --- PDF Functions ---
+        function renderPage(num) {
+        if (!pdfDoc) return;
+
+        pdfDoc.getPage(num).then(function (page) {
+        let canvas = document.getElementById('pdf-render');
+        let ctx = canvas.getContext('2d');
+        let viewport = page.getViewport({ scale: 1.5 });
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        let renderContext = {
+        canvasContext: ctx,
+        viewport: viewport
+    };
+
+        page.render(renderContext);
+        document.getElementById('pdf-info').innerText = 'Page ' + num + ' of ' + totalPages;
+    });
+    }
+
+        document.getElementById('pdf-upload').addEventListener('change', function (e) {
+        let file = e.target.files[0];
+        if (!file || file.type !== 'application/pdf') return;
+
+        let fileReader = new FileReader();
+
+        fileReader.onload = function () {
+        let typedarray = new Uint8Array(this.result);
+
+        pdfjsLib.getDocument(typedarray).promise.then(function (pdf) {
+        pdfDoc = pdf;
+        totalPages = pdf.numPages;
+        currentPage = 1;
+        renderPage(currentPage);
+    });
+    };
+
+        fileReader.readAsArrayBuffer(file);
+    });
+
+        document.getElementById('pdf-render').addEventListener('click', function (e) {
+        if (!pdfDoc) return;
+
+        let canvas = document.getElementById('pdf-render');
+        let width = canvas.offsetWidth;
+        let rect = canvas.getBoundingClientRect();
+        let offsetX = e.clientX - rect.left;
+
+        if (offsetX < width / 2) {
+        if (currentPage > 1) {
+        currentPage--;
+        renderPage(currentPage);
+    }
+    } else {
+        if (currentPage < totalPages) {
+        currentPage++;
+        renderPage(currentPage);
+             }
+        }
+    });
+
+        loadAll();
 </script>
 </body>
+</html>
